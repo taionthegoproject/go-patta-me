@@ -405,7 +405,7 @@ nav{
 // ══════════════════════════════════════
 window.addEventListener('DOMContentLoaded', function(){
 
-var firebaseConfig = {
+firebase.initializeApp({
   apiKey: "AIzaSyAPPc5WD42FoGUJbFARcc6jdlILL0lmN_o",
   authDomain: "patta-go.firebaseapp.com",
   databaseURL: "https://patta-go-default-rtdb.firebaseio.com",
@@ -413,37 +413,28 @@ var firebaseConfig = {
   storageBucket: "patta-go.firebasestorage.app",
   messagingSenderId: "438715334562",
   appId: "1:438715334562:web:65627605269dc1fa9a3cfb"
-};
-firebase.initializeApp(firebaseConfig);
-var db = firebase.database();
+});
+window.db = firebase.database();
 
-// ══════════════════════════════════════
 // STATE
-// ══════════════════════════════════════
-var slugCheckTimer = null;
-var currentSlugValid = true;
-var deletingSlug = null;
-var resultSlug = null;
-var recentLinks = JSON.parse(localStorage.getItem('patta_go_links') || '[]');
+window.window.slugCheckTimer = null;
+window.window.currentSlugValid = true;
+window.window.deletingSlug = null;
+window.window.resultSlug = null;
+window.window.recentLinks = JSON.parse(localStorage.getItem('patta_go_links') || '[]');
 
-// ══════════════════════════════════════
-// INIT
-// ══════════════════════════════════════
-document.addEventListener('DOMContentLoaded', function(){
-  // check if this is a redirect request
-  var path = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
-  var params = new URLSearchParams(window.location.search);
-  var r = params.get('r') || path;
+// check redirect
+var path = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
+var params = new URLSearchParams(window.location.search);
+var r = params.get('r') || path;
+if(r && r !== '' && r !== 'index'){
+  handleRedirect(r);
+  return;
+}
 
-  if(r && r !== '' && r !== 'index'){
-    handleRedirect(r);
-    return;
-  }
+loadStats();
+renderRecentLinks();
 
-  // show main app
-  document.getElementById('s-app').classList.add('active');
-  loadStats();
-  renderRecentLinks();
 });
 
 // ══════════════════════════════════════
@@ -453,7 +444,7 @@ function handleRedirect(slug){
   document.getElementById('s-redirect').classList.add('active');
   document.getElementById('redirect-url-text').textContent = 'go.patta.me/' + slug;
 
-  db.ref('links/' + slug).once('value').then(function(snap){
+  window.db.ref('links/' + slug).once('value').then(function(snap){
     if(!snap.exists()){
       document.getElementById('s-redirect').innerHTML =
         '<div style="font-size:48px;margin-bottom:16px">🔍</div>' +
@@ -464,7 +455,7 @@ function handleRedirect(slug){
     }
     var data = snap.val();
     // increment click
-    db.ref('links/' + slug + '/clicks').transaction(function(n){ return (n||0)+1; });
+    window.db.ref('links/' + slug + '/clicks').transaction(function(n){ return (n||0)+1; });
     // redirect
     setTimeout(function(){
       window.location.href = data.url;
@@ -482,14 +473,14 @@ function checkSlug(val){
   val = val.toLowerCase().replace(/[^a-z0-9-_]/g,'');
   document.getElementById('f-slug').value = val;
   var status = document.getElementById('slug-status');
-  if(!val){ status.textContent='ปล่อยว่างให้ระบบสร้างให้อัตโนมัติ'; status.className='inp-hint'; currentSlugValid=true; return; }
-  if(val.length < 2){ status.textContent='อย่างน้อย 2 ตัวอักษร'; status.className='inp-status err'; currentSlugValid=false; return; }
-  status.textContent='กำลังตรวจสอบ...'; status.className='inp-status checking'; currentSlugValid=false;
-  clearTimeout(slugCheckTimer);
-  slugCheckTimer = setTimeout(function(){
-    db.ref('links/'+val).once('value').then(function(snap){
-      if(snap.exists()){ status.textContent='❌ slug นี้ถูกใช้แล้ว'; status.className='inp-status err'; currentSlugValid=false; }
-      else { status.textContent='✓ ใช้ได้เลย!'; status.className='inp-status ok'; currentSlugValid=true; }
+  if(!val){ status.textContent='ปล่อยว่างให้ระบบสร้างให้อัตโนมัติ'; status.className='inp-hint'; window.currentSlugValid=true; return; }
+  if(val.length < 2){ status.textContent='อย่างน้อย 2 ตัวอักษร'; status.className='inp-status err'; window.currentSlugValid=false; return; }
+  status.textContent='กำลังตรวจสอบ...'; status.className='inp-status checking'; window.currentSlugValid=false;
+  clearTimeout(window.slugCheckTimer);
+  window.slugCheckTimer = setTimeout(function(){
+    window.db.ref('links/'+val).once('value').then(function(snap){
+      if(snap.exists()){ status.textContent='❌ slug นี้ถูกใช้แล้ว'; status.className='inp-status err'; window.currentSlugValid=false; }
+      else { status.textContent='✓ ใช้ได้เลย!'; status.className='inp-status ok'; window.currentSlugValid=true; }
     });
   }, 500);
 }
@@ -519,7 +510,7 @@ function createLink(){
 
   if(!url){ toast('⚠️ กรุณากรอก URL'); return; }
   if(!url.startsWith('http')){ url = 'https://' + url; document.getElementById('f-url').value = url; }
-  if(slug && !currentSlugValid){ toast('⚠️ slug นี้ใช้ไม่ได้'); return; }
+  if(slug && !window.currentSlugValid){ toast('⚠️ slug นี้ใช้ไม่ได้'); return; }
 
   btn.textContent='⏳ กำลังสร้าง...'; btn.disabled=true;
 
@@ -528,7 +519,7 @@ function createLink(){
   var today = new Date().toISOString().split('T')[0];
 
   var checkAndSave = function(s){
-    db.ref('links/'+s).once('value').then(function(snap){
+    window.db.ref('links/'+s).once('value').then(function(snap){
       if(snap.exists() && !slug){
         // auto slug collision — try again
         checkAndSave(genSlug(6));
@@ -547,15 +538,15 @@ function createLink(){
         created_at: Date.now(),
         created_date: today
       };
-      db.ref('links/'+s).set(data).then(function(){
+      window.db.ref('links/'+s).set(data).then(function(){
         // increment counters
-        db.ref('stats/total').transaction(function(n){ return (n||0)+1; });
-        db.ref('stats/today_'+today).transaction(function(n){ return (n||0)+1; });
+        window.db.ref('stats/total').transaction(function(n){ return (n||0)+1; });
+        window.db.ref('stats/today_'+today).transaction(function(n){ return (n||0)+1; });
 
         // save to local
-        recentLinks.unshift({slug:s, url:url, title:data.title, secret:secret, created_at:Date.now()});
-        if(recentLinks.length>20) recentLinks=recentLinks.slice(0,20);
-        localStorage.setItem('patta_go_links', JSON.stringify(recentLinks));
+        window.recentLinks.unshift({slug:s, url:url, title:data.title, secret:secret, created_at:Date.now()});
+        if(window.recentLinks.length>20) window.recentLinks=window.recentLinks.slice(0,20);
+        localStorage.setItem('patta_go_links', JSON.stringify(window.recentLinks));
 
         // show result
         showResult(s, url, secret);
@@ -568,7 +559,7 @@ function createLink(){
         document.getElementById('f-title').value='';
         document.getElementById('slug-status').textContent='ปล่อยว่างให้ระบบสร้างให้อัตโนมัติ';
         document.getElementById('slug-status').className='inp-hint';
-        currentSlugValid=true;
+        window.currentSlugValid=true;
         btn.textContent='✨ สร้าง Short Link'; btn.disabled=false;
       });
     }).catch(function(){ toast('❌ เกิดข้อผิดพลาด ลองใหม่'); btn.textContent='✨ สร้าง Short Link'; btn.disabled=false; });
@@ -577,7 +568,7 @@ function createLink(){
 }
 
 function showResult(slug, url, secret){
-  resultSlug = slug;
+  window.resultSlug = slug;
   var domain = 'https://go.patta.me/' + slug;
   document.getElementById('result-url').textContent = domain;
   document.getElementById('result-original-text').textContent = url.length>60 ? url.substring(0,60)+'...' : url;
@@ -596,15 +587,15 @@ function renderRecentLinks(){
   var empty = document.getElementById('empty-state');
   var count = document.getElementById('links-count');
 
-  if(!recentLinks.length){
+  if(!window.recentLinks.length){
     list.innerHTML=''; list.appendChild(empty);
     count.textContent = '0 links';
     return;
   }
-  count.textContent = recentLinks.length + ' links';
+  count.textContent = window.recentLinks.length + ' links';
 
   // fetch click counts
-  list.innerHTML = recentLinks.map(function(l){
+  list.innerHTML = window.recentLinks.map(function(l){
     var shortUrl = 'https://go.patta.me/'+l.slug;
     var favicon = 'https://www.google.com/s2/favicons?domain='+getDomain(l.url)+'&sz=32';
     return '<div class="link-card" id="lc-'+l.slug+'">'+
@@ -625,8 +616,8 @@ function renderRecentLinks(){
   }).join('');
 
   // fetch real click counts from Firebase
-  recentLinks.forEach(function(l){
-    db.ref('links/'+l.slug+'/clicks').once('value').then(function(snap){
+  window.recentLinks.forEach(function(l){
+    window.db.ref('links/'+l.slug+'/clicks').once('value').then(function(snap){
       var el = document.getElementById('clicks-'+l.slug);
       if(el) el.textContent = '● ' + (snap.val()||0) + ' clicks';
     });
@@ -638,13 +629,13 @@ function renderRecentLinks(){
 // ══════════════════════════════════════
 function loadStats(){
   var today = new Date().toISOString().split('T')[0];
-  db.ref('stats/total').on('value', function(s){ document.getElementById('stat-total').textContent = s.val()||0; });
-  db.ref('stats/today_'+today).once('value').then(function(s){ document.getElementById('stat-today').textContent = s.val()||0; });
+  window.db.ref('stats/total').on('value', function(s){ document.getElementById('stat-total').textContent = s.val()||0; });
+  window.db.ref('stats/today_'+today).once('value').then(function(s){ document.getElementById('stat-today').textContent = s.val()||0; });
 
   // total clicks
   var totalClicks = 0;
-  recentLinks.forEach(function(l){
-    db.ref('links/'+l.slug+'/clicks').once('value').then(function(s){
+  window.recentLinks.forEach(function(l){
+    window.db.ref('links/'+l.slug+'/clicks').once('value').then(function(s){
       totalClicks += (s.val()||0);
       document.getElementById('stat-clicks').textContent = totalClicks;
     });
@@ -655,29 +646,29 @@ function loadStats(){
 // DELETE
 // ══════════════════════════════════════
 function openDelete(slug){
-  deletingSlug = slug;
+  window.deletingSlug = slug;
   document.getElementById('delete-secret-input').value='';
   document.getElementById('delete-error').style.display='none';
   document.getElementById('delete-modal').classList.add('open');
 }
 function closeDeleteModal(){
   document.getElementById('delete-modal').classList.remove('open');
-  deletingSlug=null;
+  window.deletingSlug=null;
 }
 function confirmDelete(){
   var secret = document.getElementById('delete-secret-input').value.trim();
   if(!secret){ toast('⚠️ กรุณากรอก secret key'); return; }
   var errEl = document.getElementById('delete-error');
 
-  db.ref('links/'+deletingSlug+'/secret_hash').once('value').then(function(snap){
+  window.db.ref('links/'+window.deletingSlug+'/secret_hash').once('value').then(function(snap){
     if(!snap.exists() || snap.val() !== simpleHash(secret)){
       errEl.style.display='block'; return;
     }
     // delete
-    db.ref('links/'+deletingSlug).remove().then(function(){
-      db.ref('stats/total').transaction(function(n){ return Math.max((n||1)-1,0); });
-      recentLinks = recentLinks.filter(function(l){ return l.slug !== deletingSlug; });
-      localStorage.setItem('patta_go_links', JSON.stringify(recentLinks));
+    window.db.ref('links/'+window.deletingSlug).remove().then(function(){
+      window.db.ref('stats/total').transaction(function(n){ return Math.max((n||1)-1,0); });
+      window.recentLinks = window.recentLinks.filter(function(l){ return l.slug !== window.deletingSlug; });
+      localStorage.setItem('patta_go_links', JSON.stringify(window.recentLinks));
       renderRecentLinks();
       loadStats();
       closeDeleteModal();
@@ -695,11 +686,11 @@ function copyLink(url){
   });
 }
 function copyResult(){
-  var url = 'https://go.patta.me/' + resultSlug;
+  var url = 'https://go.patta.me/' + window.resultSlug;
   copyLink(url);
 }
 function shareResult(){
-  var url = 'https://go.patta.me/' + resultSlug;
+  var url = 'https://go.patta.me/' + window.resultSlug;
   if(navigator.share){ navigator.share({title:'Short URL', url:url}); }
   else { copyLink(url); }
 }
@@ -727,8 +718,6 @@ function toast(msg){
 
 document.getElementById('delete-modal').addEventListener('click', function(e){ if(e.target===this) closeDeleteModal(); });
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeDeleteModal(); });
-
-}); // end DOMContentLoaded
 </script>
 </body>
 </html>
