@@ -569,7 +569,7 @@ function createLink(){
 
 function showResult(slug, url, secret){
   window.resultSlug = slug;
-  var domain = 'https://go.patta.me/' + slug;
+  var domain = 'https://go.patta.me/?r=' + slug;
   document.getElementById('result-url').textContent = domain;
   document.getElementById('result-original-text').textContent = url.length>60 ? url.substring(0,60)+'...' : url;
   document.getElementById('result-open').href = domain;
@@ -596,7 +596,7 @@ function renderRecentLinks(){
 
   // fetch click counts
   list.innerHTML = window.recentLinks.map(function(l){
-    var shortUrl = 'https://go.patta.me/'+l.slug;
+    var shortUrl = 'https://go.patta.me/?r='+l.slug;
     var favicon = 'https://www.google.com/s2/favicons?domain='+getDomain(l.url)+'&sz=32';
     return '<div class="link-card" id="lc-'+l.slug+'">'+
       '<div class="link-icon"><img src="'+favicon+'" alt="" onerror="this.parentElement.innerHTML=\'🔗\'"></div>'+
@@ -686,11 +686,11 @@ function copyLink(url){
   });
 }
 function copyResult(){
-  var url = 'https://go.patta.me/' + window.resultSlug;
+  var url = 'https://go.patta.me/?r=' + window.resultSlug;
   copyLink(url);
 }
 function shareResult(){
-  var url = 'https://go.patta.me/' + window.resultSlug;
+  var url = 'https://go.patta.me/?r=' + window.resultSlug;
   if(navigator.share){ navigator.share({title:'Short URL', url:url}); }
   else { copyLink(url); }
 }
