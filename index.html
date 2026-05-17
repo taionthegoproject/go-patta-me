@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Patta Go — Short URL ฟรี ไม่จำกัด</title>
 <meta name="description" content="สร้าง short URL ฟรี กำหนด slug เองได้ นับ clicks อัตโนมัติ ไม่ต้องสมัคร">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://go.patta.me">
+<meta property="og:title" content="Patta Go — Short URL สั้นเท่าที่อยากได้">
+<meta property="og:description" content="สร้าง short URL ฟรี กำหนด slug เองได้ นับ clicks อัตโนมัติ ไม่ต้องสมัคร ใช้ได้เลยตอนนี้">
+<meta property="og:image" content="https://go.patta.me/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Patta Go — Short URL สั้นเท่าที่อยากได้">
+<meta name="twitter:description" content="สร้าง short URL ฟรี กำหนด slug เองได้ นับ clicks อัตโนมัติ ไม่ต้องสมัคร">
+<meta name="twitter:image" content="https://go.patta.me/og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;600;700;800&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -272,7 +283,7 @@ nav{
 <div id="s-redirect">
   <div class="redirect-spinner"></div>
   <div class="redirect-title">กำลัง redirect...</div>
-  <div class="redirect-sub">รอสักครู่นะครับ</div>
+  <div class="redirect-sub">รอแปปนึงน้า</div>
   <div class="redirect-url" id="redirect-url-text"></div>
 </div>
 
@@ -305,10 +316,6 @@ nav{
           <a class="btn btn-sm btn-outline" id="result-open" href="#" target="_blank" rel="noopener">🔗 เปิด Link</a>
           <button class="btn btn-sm btn-outline" onclick="shareResult()">📤 แชร์</button>
         </div>
-        <div class="result-secret-box">
-          🔑 Secret key ของ link นี้: <code id="result-secret"></code><br>
-          <span style="font-size:11px;color:var(--t3)">เก็บไว้ก่อนนะครับ ต้องใช้ถ้าอยากลบ link ภายหลัง</span>
-        </div>
       </div>
 
       <!-- Create Form -->
@@ -330,9 +337,6 @@ nav{
             <label class="form-label">ชื่อ / บันทึก</label>
             <input type="text" id="f-title" class="inp" placeholder="เช่น ลิงก์ Japan trip">
           </div>
-        </div>
-        <div class="secret-hint">
-          🔑 ระบบจะสร้าง <strong>secret key</strong> ให้อัตโนมัติ ใช้สำหรับลบ link ภายหลัง — เก็บไว้ให้ดีนะครับ!
         </div>
         <button class="btn btn-dark" id="create-btn" onclick="createLink()">
           ✨ สร้าง Short Link
@@ -377,19 +381,15 @@ nav{
   </div>
 </div>
 
-<!-- DELETE MODAL -->
+<!-- DELETE CONFIRM MODAL -->
 <div class="modal-bg" id="delete-modal">
   <div class="modal">
-    <div class="modal-title">🗑 ลบ Link</div>
-    <div class="modal-sub">กรอก secret key ที่ได้รับตอนสร้าง link เพื่อยืนยันการลบ</div>
-    <div style="margin-bottom:16px">
-      <label class="form-label">Secret Key</label>
-      <input type="text" id="delete-secret-input" class="inp" placeholder="xxxxxxxx">
-    </div>
-    <div id="delete-error" style="font-size:12px;color:var(--red);margin-bottom:12px;display:none">❌ Secret key ไม่ถูกต้อง</div>
-    <div class="modal-actions">
+    <div style="font-size:32px;margin-bottom:12px;text-align:center">🗑</div>
+    <div class="modal-title" style="text-align:center">ลบ Link นี้?</div>
+    <div class="modal-sub" style="text-align:center" id="delete-modal-slug"></div>
+    <div class="modal-actions" style="justify-content:center">
       <button class="btn btn-sm btn-outline" onclick="closeDeleteModal()">ยกเลิก</button>
-      <button class="btn btn-sm btn-red" onclick="confirmDelete()">ลบ Link</button>
+      <button class="btn btn-sm btn-red" onclick="confirmDelete()">ลบเลย</button>
     </div>
   </div>
 </div>
@@ -544,12 +544,12 @@ function createLink(){
         window.db.ref('stats/today_'+today).transaction(function(n){ return (n||0)+1; });
 
         // save to local
-        window.recentLinks.unshift({slug:s, url:url, title:data.title, secret:secret, created_at:Date.now()});
+        window.recentLinks.unshift({slug:s, url:url, title:data.title, created_at:Date.now()});
         if(window.recentLinks.length>20) window.recentLinks=window.recentLinks.slice(0,20);
         localStorage.setItem('patta_go_links', JSON.stringify(window.recentLinks));
 
         // show result
-        showResult(s, url, secret);
+        showResult(s, url);
         renderRecentLinks();
         loadStats();
 
@@ -567,13 +567,12 @@ function createLink(){
   checkAndSave(finalSlug);
 }
 
-function showResult(slug, url, secret){
+function showResult(slug, url){
   window.resultSlug = slug;
   var domain = 'https://go.patta.me/?r=' + slug;
   document.getElementById('result-url').textContent = domain;
   document.getElementById('result-original-text').textContent = url.length>60 ? url.substring(0,60)+'...' : url;
   document.getElementById('result-open').href = domain;
-  document.getElementById('result-secret').textContent = secret;
   var card = document.getElementById('result-card');
   card.classList.add('show');
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -647,34 +646,26 @@ function loadStats(){
 // ══════════════════════════════════════
 function openDelete(slug){
   window.deletingSlug = slug;
-  document.getElementById('delete-secret-input').value='';
-  document.getElementById('delete-error').style.display='none';
+  var link = window.recentLinks.find(function(l){ return l.slug===slug; });
+  var label = link ? 'go.patta.me/?r=' + slug : slug;
+  document.getElementById('delete-modal-slug').textContent = label;
   document.getElementById('delete-modal').classList.add('open');
 }
 function closeDeleteModal(){
   document.getElementById('delete-modal').classList.remove('open');
-  window.deletingSlug=null;
+  window.deletingSlug = null;
 }
 function confirmDelete(){
-  var secret = document.getElementById('delete-secret-input').value.trim();
-  if(!secret){ toast('⚠️ กรุณากรอก secret key'); return; }
-  var errEl = document.getElementById('delete-error');
-
-  window.db.ref('links/'+window.deletingSlug+'/secret_hash').once('value').then(function(snap){
-    if(!snap.exists() || snap.val() !== simpleHash(secret)){
-      errEl.style.display='block'; return;
-    }
-    // delete
-    window.db.ref('links/'+window.deletingSlug).remove().then(function(){
-      window.db.ref('stats/total').transaction(function(n){ return Math.max((n||1)-1,0); });
-      window.recentLinks = window.recentLinks.filter(function(l){ return l.slug !== window.deletingSlug; });
-      localStorage.setItem('patta_go_links', JSON.stringify(window.recentLinks));
-      renderRecentLinks();
-      loadStats();
-      closeDeleteModal();
-      toast('🗑 ลบแล้ว');
-    });
-  });
+  if(!window.deletingSlug) return;
+  window.db.ref('links/'+window.deletingSlug).remove().then(function(){
+    window.db.ref('stats/total').transaction(function(n){ return Math.max((n||1)-1,0); });
+    window.recentLinks = window.recentLinks.filter(function(l){ return l.slug !== window.deletingSlug; });
+    localStorage.setItem('patta_go_links', JSON.stringify(window.recentLinks));
+    renderRecentLinks();
+    loadStats();
+    closeDeleteModal();
+    toast('🗑 ลบแล้ว');
+  }).catch(function(){ toast('❌ เกิดข้อผิดพลาด ลองใหม่'); });
 }
 
 // ══════════════════════════════════════
