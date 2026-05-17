@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Patta Go — Short URL ฟรี ไม่จำกัด</title>
+<meta name="description" content="สร้าง short URL ฟรี กำหนด slug เองได้ นับ clicks อัตโนมัติ ไม่ต้องสมัคร">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;600;700;800&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════
+   TOKENS
+══════════════════════════════ */
+:root{
+  --bg:#FAFAF9; --bg2:#F4F3EF; --bg3:#ECEAE5;
+  --dark:#18181B; --text:#27272A; --t2:#71717A; --t3:#A1A1AA;
+  --bd:rgba(0,0,0,.07); --bd2:rgba(0,0,0,.04);
+  --yellow:#F59E0B; --y-l:#FEF3C7;
+  --mint:#10B981; --m-l:#D1FAE5;
+  --red:#EF4444; --r-l:#FEE2E2;
+  --blue:#3B82F6; --b-l:#DBEAFE;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shm:0 4px 12px rgba(0,0,0,.08);
+  --shl:0 12px 32px rgba(0,0,0,.10);
+  --r:12px; --rl:20px; --rx:28px; --p:999px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.6;overflow-x:hidden;min-height:100svh}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+input,textarea{font-family:inherit}
+h1,h2,h3,h4{font-family:'Anuphan',sans-serif;letter-spacing:-.02em}
+
+/* ══════════════════════════════
+   REDIRECT SCREEN
+══════════════════════════════ */
+#s-redirect{
+  display:none;min-height:100svh;
+  align-items:center;justify-content:center;
+  flex-direction:column;gap:16px;text-align:center;
+  padding:24px;
+}
+#s-redirect.active{display:flex}
+.redirect-spinner{
+  width:40px;height:40px;border-radius:50%;
+  border:3px solid var(--bd);border-top-color:var(--dark);
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.redirect-title{font-size:18px;font-weight:700;color:var(--dark)}
+.redirect-sub{font-size:14px;color:var(--t2)}
+.redirect-url{font-size:12px;color:var(--t3);margin-top:4px;font-family:monospace;background:var(--bg2);padding:6px 12px;border-radius:var(--r);border:1px solid var(--bd)}
+
+/* ══════════════════════════════
+   MAIN APP
+══════════════════════════════ */
+#s-app{display:none}
+#s-app.active{display:block}
+
+/* NAV */
+nav{
+  background:rgba(250,250,249,.92);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--bd2);
+  padding:0 24px;position:sticky;top:0;z-index:50;
+}
+.nav-inner{
+  max-width:720px;margin:0 auto;
+  height:56px;display:flex;align-items:center;justify-content:space-between;
+}
+.nav-logo{font-family:'Anuphan',sans-serif;font-weight:800;font-size:19px;color:var(--dark);display:flex;align-items:center;gap:2px}
+.nav-logo-dot{width:7px;height:7px;border-radius:50%;background:var(--yellow);margin:0 1px;animation:dotpulse 2s ease-in-out infinite}
+@keyframes dotpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.4)}}
+.nav-badge{font-size:11px;font-weight:700;color:var(--t2);padding:4px 12px;border:1.5px solid var(--bd);border-radius:var(--p);background:#fff}
+
+/* HERO */
+.hero{
+  max-width:720px;margin:0 auto;padding:48px 24px 32px;
+  position:relative;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 50% at 10% 20%,rgba(245,158,11,.13) 0%,transparent 55%),
+    radial-gradient(ellipse 50% 40% at 90% 10%,rgba(16,185,129,.09) 0%,transparent 50%);
+}
+.hero-inner{position:relative;z-index:1}
+.hero-label{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 13px;border-radius:var(--p);
+  background:rgba(255,255,255,.8);border:1px solid var(--bd);
+  font-size:11px;font-weight:700;color:var(--t2);
+  margin-bottom:16px;backdrop-filter:blur(8px);
+}
+.hero-label .dot{width:6px;height:6px;border-radius:50%;background:var(--mint)}
+.hero-h1{font-size:clamp(32px,5vw,52px);font-weight:800;color:var(--dark);line-height:1.1;margin-bottom:12px}
+.hero-h1 mark{background:none;color:var(--dark);position:relative;display:inline}
+.hero-h1 mark::after{content:'';position:absolute;left:0;right:0;bottom:2px;height:10px;background:var(--yellow);border-radius:4px;z-index:-1;opacity:.6;transform:rotate(-.3deg)}
+.hero-sub{font-size:15px;color:var(--t2);margin-bottom:32px;line-height:1.65}
+
+/* CREATE FORM */
+.create-card{
+  background:#fff;border:1px solid var(--bd);border-radius:var(--rx);
+  padding:28px;box-shadow:var(--shm);margin-bottom:32px;
+}
+.form-label{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:7px}
+.input-wrap{position:relative;margin-bottom:16px}
+.input-prefix{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--t3);font-weight:500;pointer-events:none;white-space:nowrap}
+.inp{
+  width:100%;padding:13px 16px;border-radius:var(--r);
+  border:1.5px solid var(--bd);font-size:15px;color:var(--dark);
+  background:#fff;outline:none;transition:border-color .2s;
+}
+.inp:focus{border-color:var(--dark)}
+.inp.has-prefix{padding-left:116px}
+.inp-hint{font-size:11px;color:var(--t3);margin-top:5px}
+.inp-status{font-size:12px;margin-top:5px;font-weight:600}
+.inp-status.ok{color:var(--mint)}
+.inp-status.err{color:var(--red)}
+.inp-status.checking{color:var(--t3)}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.secret-hint{
+  background:var(--y-l);border:1px solid rgba(245,158,11,.2);
+  border-radius:var(--r);padding:10px 14px;margin-bottom:16px;
+  font-size:12px;color:#92400E;line-height:1.55;
+}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 24px;border-radius:var(--p);
+  font-size:14px;font-weight:700;font-family:'Sarabun',sans-serif;
+  transition:all .2s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(0)}
+.btn-dark{background:var(--dark);color:#fff;box-shadow:0 4px 14px rgba(24,24,27,.2);width:100%;padding:14px}
+.btn-dark:hover{box-shadow:0 8px 24px rgba(24,24,27,.25)}
+.btn-sm{padding:7px 14px;font-size:13px}
+.btn-outline{border:1.5px solid var(--bd);color:var(--t2)}
+.btn-outline:hover{background:var(--bg2);color:var(--text);border-color:rgba(0,0,0,.15)}
+.btn-red{background:var(--red);color:#fff}
+.btn-ghost{color:var(--t2);padding:7px 14px}
+.btn-ghost:hover{background:var(--bg2);border-radius:var(--r)}
+.btn-copy{background:var(--b-l);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
+.btn-copy:hover{background:#BFDBFE}
+
+/* SUCCESS RESULT */
+.result-card{
+  background:linear-gradient(135deg,var(--m-l),rgba(209,250,229,.5));
+  border:1px solid rgba(16,185,129,.2);
+  border-radius:var(--rx);padding:24px;margin-bottom:20px;
+  display:none;
+}
+.result-card.show{display:block}
+.result-label{font-size:11px;font-weight:700;color:var(--mint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.result-url{
+  font-family:monospace;font-size:18px;font-weight:700;color:var(--dark);
+  margin-bottom:12px;word-break:break-all;
+}
+.result-original{font-size:12px;color:var(--t2);margin-bottom:16px;display:flex;align-items:center;gap:6px}
+.result-actions{display:flex;gap:8px;flex-wrap:wrap}
+.result-secret-box{
+  background:rgba(0,0,0,.04);border-radius:var(--r);padding:10px 14px;margin-top:14px;
+  font-size:12px;color:var(--t2);
+}
+.result-secret-box code{font-family:monospace;color:var(--red);font-weight:700;font-size:13px}
+
+/* LINKS TABLE */
+.links-section{max-width:720px;margin:0 auto;padding:0 24px 80px}
+.links-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.links-title{font-size:15px;font-weight:700;color:var(--dark)}
+.links-count{font-size:11px;color:var(--t3);background:var(--bg2);padding:2px 9px;border-radius:var(--p)}
+.link-card{
+  background:#fff;border:1px solid var(--bd);border-radius:var(--rl);
+  padding:16px 18px;margin-bottom:10px;
+  display:flex;align-items:center;gap:14px;
+  transition:all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.link-card:hover{box-shadow:var(--shm);border-color:rgba(0,0,0,.1)}
+.link-icon{
+  width:40px;height:40px;border-radius:var(--r);flex-shrink:0;
+  background:var(--bg2);display:flex;align-items:center;justify-content:center;
+  font-size:18px;overflow:hidden;
+}
+.link-icon img{width:100%;height:100%;object-fit:cover}
+.link-body{flex:1;min-width:0}
+.link-short{font-family:'Anuphan',sans-serif;font-weight:700;font-size:15px;color:var(--dark);margin-bottom:2px}
+.link-short span{color:var(--yellow)}
+.link-original{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link-meta{display:flex;align-items:center;gap:10px;margin-top:4px}
+.link-clicks{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;color:var(--mint);
+  background:var(--m-l);padding:2px 8px;border-radius:var(--p);
+}
+.link-date{font-size:10px;color:var(--t3)}
+.link-actions{display:flex;gap:4px;flex-shrink:0}
+.link-btn{
+  width:30px;height:30px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--t3);cursor:pointer;transition:all .15s;
+}
+.link-btn:hover{background:var(--bg2);color:var(--text)}
+.link-btn.del:hover{background:var(--r-l);color:var(--red)}
+
+/* EMPTY */
+.empty{
+  text-align:center;padding:48px 24px;
+  background:#fff;border:1.5px dashed var(--bd);
+  border-radius:var(--rx);
+}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-title{font-size:16px;font-weight:700;color:var(--dark);margin-bottom:6px}
+.empty-sub{font-size:13px;color:var(--t2)}
+
+/* DELETE MODAL */
+.modal-bg{
+  position:fixed;inset:0;z-index:99;
+  background:rgba(0,0,0,.4);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.modal-bg.open{display:flex}
+.modal{
+  background:#fff;border-radius:var(--rx);
+  padding:32px 28px;max-width:380px;width:100%;
+  box-shadow:0 24px 60px rgba(0,0,0,.15);
+  animation:modalIn .22s ease both;position:relative;
+}
+@keyframes modalIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal-title{font-size:18px;font-weight:700;color:var(--dark);margin-bottom:8px}
+.modal-sub{font-size:14px;color:var(--t2);margin-bottom:20px;line-height:1.55}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+
+/* TOAST */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--dark);color:#fff;padding:11px 20px;border-radius:var(--p);
+  font-size:14px;font-weight:500;white-space:nowrap;
+  transition:transform .3s cubic-bezier(.16,1,.3,1);
+  z-index:999;pointer-events:none;
+}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* STATS BAR */
+.stats-bar{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+  max-width:720px;margin:0 auto;padding:0 24px 24px;
+}
+.stat-card{
+  background:#fff;border:1px solid var(--bd);border-radius:var(--rl);
+  padding:16px;text-align:center;
+}
+.stat-num{font-family:'Anuphan',sans-serif;font-weight:800;font-size:28px;color:var(--dark);line-height:1}
+.stat-lbl{font-size:11px;color:var(--t3);margin-top:4px}
+
+/* FOOTER */
+.site-footer{text-align:center;padding:24px;font-size:12px;color:var(--t3);border-top:1px solid var(--bd2)}
+.site-footer a{color:var(--t2);font-weight:600}
+
+/* RESPONSIVE */
+@media(max-width:560px){
+  .form-row{grid-template-columns:1fr}
+  .stats-bar{grid-template-columns:1fr 1fr}
+  .result-actions{flex-direction:column}
+  .result-actions .btn{width:100%;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ REDIRECT SCREEN ═══ -->
+<div id="s-redirect">
+  <div class="redirect-spinner"></div>
+  <div class="redirect-title">กำลัง redirect...</div>
+  <div class="redirect-sub">รอสักครู่นะครับ</div>
+  <div class="redirect-url" id="redirect-url-text"></div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div id="s-app">
+
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">Go<span class="nav-logo-dot"></span>patta</div>
+      <div class="nav-badge">Short URL · ฟรี · ไม่จำกัด</div>
+    </div>
+  </nav>
+
+  <!-- HERO + FORM -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-label"><span class="dot"></span> ฟรี · ไม่ต้องสมัคร · ใช้ได้ทันที</div>
+      <h1 class="hero-h1">Short URL <mark>สั้นเท่า</mark><br>ที่อยากได้</h1>
+      <p class="hero-sub">สร้าง short link กำหนด slug เองได้ นับ clicks อัตโนมัติ<br>ไม่ต้องสมัครสมาชิก ใช้ได้เลยตอนนี้</p>
+
+      <!-- Result -->
+      <div class="result-card" id="result-card">
+        <div class="result-label">✅ สร้าง link สำเร็จ!</div>
+        <div class="result-url" id="result-url"></div>
+        <div class="result-original" id="result-original">
+          <span>→</span><span id="result-original-text"></span>
+        </div>
+        <div class="result-actions">
+          <button class="btn btn-sm btn-copy" onclick="copyResult()">📋 คัดลอก Link</button>
+          <a class="btn btn-sm btn-outline" id="result-open" href="#" target="_blank" rel="noopener">🔗 เปิด Link</a>
+          <button class="btn btn-sm btn-outline" onclick="shareResult()">📤 แชร์</button>
+        </div>
+        <div class="result-secret-box">
+          🔑 Secret key ของ link นี้: <code id="result-secret"></code><br>
+          <span style="font-size:11px;color:var(--t3)">เก็บไว้ก่อนนะครับ ต้องใช้ถ้าอยากลบ link ภายหลัง</span>
+        </div>
+      </div>
+
+      <!-- Create Form -->
+      <div class="create-card">
+        <div class="input-wrap" style="margin-bottom:6px">
+          <label class="form-label">URL ที่อยากย่อ *</label>
+          <input type="url" id="f-url" class="inp" placeholder="https://...">
+        </div>
+        <div class="form-row" style="margin-bottom:6px">
+          <div class="input-wrap" style="margin-bottom:0">
+            <label class="form-label">Slug (ไม่บังคับ)</label>
+            <div style="position:relative">
+              <span class="input-prefix" style="font-size:12px">go.patta.me/</span>
+              <input type="text" id="f-slug" class="inp has-prefix" placeholder="mylink" maxlength="30" oninput="checkSlug(this.value)">
+            </div>
+            <div id="slug-status" class="inp-hint">ปล่อยว่างให้ระบบสร้างให้อัตโนมัติ</div>
+          </div>
+          <div class="input-wrap" style="margin-bottom:0">
+            <label class="form-label">ชื่อ / บันทึก</label>
+            <input type="text" id="f-title" class="inp" placeholder="เช่น ลิงก์ Japan trip">
+          </div>
+        </div>
+        <div class="secret-hint">
+          🔑 ระบบจะสร้าง <strong>secret key</strong> ให้อัตโนมัติ ใช้สำหรับลบ link ภายหลัง — เก็บไว้ให้ดีนะครับ!
+        </div>
+        <button class="btn btn-dark" id="create-btn" onclick="createLink()">
+          ✨ สร้าง Short Link
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-num" id="stat-total">0</div>
+      <div class="stat-lbl">Links ทั้งหมด</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-clicks">0</div>
+      <div class="stat-lbl">Clicks ทั้งหมด</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-today">0</div>
+      <div class="stat-lbl">สร้างวันนี้</div>
+    </div>
+  </div>
+
+  <!-- LINKS LIST -->
+  <div class="links-section">
+    <div class="links-hd">
+      <span class="links-title">🔗 Links ล่าสุด</span>
+      <span class="links-count" id="links-count">0 links</span>
+    </div>
+    <div id="links-list">
+      <div class="empty" id="empty-state">
+        <div class="empty-icon">🔗</div>
+        <div class="empty-title">ยังไม่มี Link</div>
+        <div class="empty-sub">สร้าง short link แรกของคุณด้านบนได้เลยครับ</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="site-footer">
+    part of <a href="https://patta.me">patta.me</a> ecosystem · ฟรีตลอดไป 🌟
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-bg" id="delete-modal">
+  <div class="modal">
+    <div class="modal-title">🗑 ลบ Link</div>
+    <div class="modal-sub">กรอก secret key ที่ได้รับตอนสร้าง link เพื่อยืนยันการลบ</div>
+    <div style="margin-bottom:16px">
+      <label class="form-label">Secret Key</label>
+      <input type="text" id="delete-secret-input" class="inp" placeholder="xxxxxxxx">
+    </div>
+    <div id="delete-error" style="font-size:12px;color:var(--red);margin-bottom:12px;display:none">❌ Secret key ไม่ถูกต้อง</div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-outline" onclick="closeDeleteModal()">ยกเลิก</button>
+      <button class="btn btn-sm btn-red" onclick="confirmDelete()">ลบ Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+// ══════════════════════════════════════
+// FIREBASE CONFIG — ใส่ config ของคุณที่นี่
+// ══════════════════════════════════════
+window.onload = function(){
+
+var firebaseConfig = {
+  apiKey: "AIzaSyAPPc5WD42FoGUJbFARcc6jdlILL0lmN_o",
+  authDomain: "patta-go.firebaseapp.com",
+  databaseURL: "https://patta-go-default-rtdb.firebaseio.com",
+  projectId: "patta-go",
+  storageBucket: "patta-go.firebasestorage.app",
+  messagingSenderId: "438715334562",
+  appId: "1:438715334562:web:65627605269dc1fa9a3cfb"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+var slugCheckTimer = null;
+var currentSlugValid = true;
+var deletingSlug = null;
+var resultSlug = null;
+var recentLinks = JSON.parse(localStorage.getItem('patta_go_links') || '[]');
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function(){
+  // check if this is a redirect request
+  var path = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
+  var params = new URLSearchParams(window.location.search);
+  var r = params.get('r') || path;
+
+  if(r && r !== '' && r !== 'index'){
+    handleRedirect(r);
+    return;
+  }
+
+  // show main app
+  document.getElementById('s-app').classList.add('active');
+  loadStats();
+  renderRecentLinks();
+});
+
+// ══════════════════════════════════════
+// REDIRECT
+// ══════════════════════════════════════
+function handleRedirect(slug){
+  document.getElementById('s-redirect').classList.add('active');
+  document.getElementById('redirect-url-text').textContent = 'go.patta.me/' + slug;
+
+  db.ref('links/' + slug).once('value').then(function(snap){
+    if(!snap.exists()){
+      document.getElementById('s-redirect').innerHTML =
+        '<div style="font-size:48px;margin-bottom:16px">🔍</div>' +
+        '<div class="redirect-title">ไม่พบ Link นี้</div>' +
+        '<div class="redirect-sub" style="margin-bottom:20px">อาจถูกลบไปแล้ว หรือ slug ไม่ถูกต้อง</div>' +
+        '<a href="/" style="padding:10px 24px;background:var(--dark);color:#fff;border-radius:var(--p);font-size:14px;font-weight:700">กลับหน้าแรก</a>';
+      return;
+    }
+    var data = snap.val();
+    // increment click
+    db.ref('links/' + slug + '/clicks').transaction(function(n){ return (n||0)+1; });
+    // redirect
+    setTimeout(function(){
+      window.location.href = data.url;
+    }, 800);
+    document.getElementById('redirect-url-text').textContent = data.url.length > 50 ? data.url.substring(0,50)+'...' : data.url;
+  }).catch(function(){
+    window.location.href = '/';
+  });
+}
+
+// ══════════════════════════════════════
+// SLUG CHECK
+// ══════════════════════════════════════
+function checkSlug(val){
+  val = val.toLowerCase().replace(/[^a-z0-9-_]/g,'');
+  document.getElementById('f-slug').value = val;
+  var status = document.getElementById('slug-status');
+  if(!val){ status.textContent='ปล่อยว่างให้ระบบสร้างให้อัตโนมัติ'; status.className='inp-hint'; currentSlugValid=true; return; }
+  if(val.length < 2){ status.textContent='อย่างน้อย 2 ตัวอักษร'; status.className='inp-status err'; currentSlugValid=false; return; }
+  status.textContent='กำลังตรวจสอบ...'; status.className='inp-status checking'; currentSlugValid=false;
+  clearTimeout(slugCheckTimer);
+  slugCheckTimer = setTimeout(function(){
+    db.ref('links/'+val).once('value').then(function(snap){
+      if(snap.exists()){ status.textContent='❌ slug นี้ถูกใช้แล้ว'; status.className='inp-status err'; currentSlugValid=false; }
+      else { status.textContent='✓ ใช้ได้เลย!'; status.className='inp-status ok'; currentSlugValid=true; }
+    });
+  }, 500);
+}
+
+// ══════════════════════════════════════
+// CREATE LINK
+// ══════════════════════════════════════
+function genSlug(len){
+  var chars='abcdefghjkmnpqrstuvwxyz23456789';
+  var s='';
+  for(var i=0;i<(len||6);i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+function genSecret(){
+  var chars='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  var s='';
+  for(var i=0;i<12;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+function createLink(){
+  var url = document.getElementById('f-url').value.trim();
+  var slug = document.getElementById('f-slug').value.trim().toLowerCase();
+  var title = document.getElementById('f-title').value.trim();
+  var btn = document.getElementById('create-btn');
+
+  if(!url){ toast('⚠️ กรุณากรอก URL'); return; }
+  if(!url.startsWith('http')){ url = 'https://' + url; document.getElementById('f-url').value = url; }
+  if(slug && !currentSlugValid){ toast('⚠️ slug นี้ใช้ไม่ได้'); return; }
+
+  btn.textContent='⏳ กำลังสร้าง...'; btn.disabled=true;
+
+  var finalSlug = slug || genSlug(6);
+  var secret = genSecret();
+  var today = new Date().toISOString().split('T')[0];
+
+  var checkAndSave = function(s){
+    db.ref('links/'+s).once('value').then(function(snap){
+      if(snap.exists() && !slug){
+        // auto slug collision — try again
+        checkAndSave(genSlug(6));
+        return;
+      }
+      if(snap.exists() && slug){
+        toast('❌ slug นี้ถูกใช้แล้ว ลองใหม่'); btn.textContent='✨ สร้าง Short Link'; btn.disabled=false;
+        return;
+      }
+      var data = {
+        url: url,
+        title: title || getDomain(url),
+        slug: s,
+        secret_hash: simpleHash(secret),
+        clicks: 0,
+        created_at: Date.now(),
+        created_date: today
+      };
+      db.ref('links/'+s).set(data).then(function(){
+        // increment counters
+        db.ref('stats/total').transaction(function(n){ return (n||0)+1; });
+        db.ref('stats/today_'+today).transaction(function(n){ return (n||0)+1; });
+
+        // save to local
+        recentLinks.unshift({slug:s, url:url, title:data.title, secret:secret, created_at:Date.now()});
+        if(recentLinks.length>20) recentLinks=recentLinks.slice(0,20);
+        localStorage.setItem('patta_go_links', JSON.stringify(recentLinks));
+
+        // show result
+        showResult(s, url, secret);
+        renderRecentLinks();
+        loadStats();
+
+        // reset form
+        document.getElementById('f-url').value='';
+        document.getElementById('f-slug').value='';
+        document.getElementById('f-title').value='';
+        document.getElementById('slug-status').textContent='ปล่อยว่างให้ระบบสร้างให้อัตโนมัติ';
+        document.getElementById('slug-status').className='inp-hint';
+        currentSlugValid=true;
+        btn.textContent='✨ สร้าง Short Link'; btn.disabled=false;
+      });
+    }).catch(function(){ toast('❌ เกิดข้อผิดพลาด ลองใหม่'); btn.textContent='✨ สร้าง Short Link'; btn.disabled=false; });
+  };
+  checkAndSave(finalSlug);
+}
+
+function showResult(slug, url, secret){
+  resultSlug = slug;
+  var domain = 'https://go.patta.me/' + slug;
+  document.getElementById('result-url').textContent = domain;
+  document.getElementById('result-original-text').textContent = url.length>60 ? url.substring(0,60)+'...' : url;
+  document.getElementById('result-open').href = domain;
+  document.getElementById('result-secret').textContent = secret;
+  var card = document.getElementById('result-card');
+  card.classList.add('show');
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ══════════════════════════════════════
+// RECENT LINKS
+// ══════════════════════════════════════
+function renderRecentLinks(){
+  var list = document.getElementById('links-list');
+  var empty = document.getElementById('empty-state');
+  var count = document.getElementById('links-count');
+
+  if(!recentLinks.length){
+    list.innerHTML=''; list.appendChild(empty);
+    count.textContent = '0 links';
+    return;
+  }
+  count.textContent = recentLinks.length + ' links';
+
+  // fetch click counts
+  list.innerHTML = recentLinks.map(function(l){
+    var shortUrl = 'https://go.patta.me/'+l.slug;
+    var favicon = 'https://www.google.com/s2/favicons?domain='+getDomain(l.url)+'&sz=32';
+    return '<div class="link-card" id="lc-'+l.slug+'">'+
+      '<div class="link-icon"><img src="'+favicon+'" alt="" onerror="this.parentElement.innerHTML=\'🔗\'"></div>'+
+      '<div class="link-body">'+
+        '<div class="link-short">go.patta.me/<span>'+l.slug+'</span></div>'+
+        '<div class="link-original">'+esc(l.url)+'</div>'+
+        '<div class="link-meta">'+
+          '<span class="link-clicks" id="clicks-'+l.slug+'">● 0 clicks</span>'+
+          '<span class="link-date">'+formatDate(l.created_at)+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<div class="link-actions">'+
+        '<div class="link-btn" onclick="copyLink(\''+shortUrl+'\')" title="คัดลอก">📋</div>'+
+        '<div class="link-btn del" onclick="openDelete(\''+l.slug+'\')" title="ลบ">🗑</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  // fetch real click counts from Firebase
+  recentLinks.forEach(function(l){
+    db.ref('links/'+l.slug+'/clicks').once('value').then(function(snap){
+      var el = document.getElementById('clicks-'+l.slug);
+      if(el) el.textContent = '● ' + (snap.val()||0) + ' clicks';
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// STATS
+// ══════════════════════════════════════
+function loadStats(){
+  var today = new Date().toISOString().split('T')[0];
+  db.ref('stats/total').on('value', function(s){ document.getElementById('stat-total').textContent = s.val()||0; });
+  db.ref('stats/today_'+today).once('value').then(function(s){ document.getElementById('stat-today').textContent = s.val()||0; });
+
+  // total clicks
+  var totalClicks = 0;
+  recentLinks.forEach(function(l){
+    db.ref('links/'+l.slug+'/clicks').once('value').then(function(s){
+      totalClicks += (s.val()||0);
+      document.getElementById('stat-clicks').textContent = totalClicks;
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// DELETE
+// ══════════════════════════════════════
+function openDelete(slug){
+  deletingSlug = slug;
+  document.getElementById('delete-secret-input').value='';
+  document.getElementById('delete-error').style.display='none';
+  document.getElementById('delete-modal').classList.add('open');
+}
+function closeDeleteModal(){
+  document.getElementById('delete-modal').classList.remove('open');
+  deletingSlug=null;
+}
+function confirmDelete(){
+  var secret = document.getElementById('delete-secret-input').value.trim();
+  if(!secret){ toast('⚠️ กรุณากรอก secret key'); return; }
+  var errEl = document.getElementById('delete-error');
+
+  db.ref('links/'+deletingSlug+'/secret_hash').once('value').then(function(snap){
+    if(!snap.exists() || snap.val() !== simpleHash(secret)){
+      errEl.style.display='block'; return;
+    }
+    // delete
+    db.ref('links/'+deletingSlug).remove().then(function(){
+      db.ref('stats/total').transaction(function(n){ return Math.max((n||1)-1,0); });
+      recentLinks = recentLinks.filter(function(l){ return l.slug !== deletingSlug; });
+      localStorage.setItem('patta_go_links', JSON.stringify(recentLinks));
+      renderRecentLinks();
+      loadStats();
+      closeDeleteModal();
+      toast('🗑 ลบแล้ว');
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════
+function copyLink(url){
+  navigator.clipboard.writeText(url).then(function(){ toast('📋 คัดลอกแล้ว'); }).catch(function(){
+    var t=document.createElement('textarea');t.value=url;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('📋 คัดลอกแล้ว');
+  });
+}
+function copyResult(){
+  var url = 'https://go.patta.me/' + resultSlug;
+  copyLink(url);
+}
+function shareResult(){
+  var url = 'https://go.patta.me/' + resultSlug;
+  if(navigator.share){ navigator.share({title:'Short URL', url:url}); }
+  else { copyLink(url); }
+}
+function getDomain(url){
+  try{ return new URL(url).hostname.replace('www.',''); } catch(e){ return url; }
+}
+function formatDate(ts){
+  var d = new Date(ts);
+  return d.getDate()+'/'+( d.getMonth()+1 )+'/'+d.getFullYear();
+}
+function esc(str){ if(!str)return''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function simpleHash(str){
+  var h=0;
+  for(var i=0;i<str.length;i++){ h=Math.imul(31,h)+str.charCodeAt(i)|0; }
+  return Math.abs(h).toString(36);
+}
+
+var toastTimer;
+function toast(msg){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){ el.classList.remove('show'); },2500);
+}
+
+document.getElementById('delete-modal').addEventListener('click', function(e){ if(e.target===this) closeDeleteModal(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeDeleteModal(); });
+
+}; // end window.onload
+</script>
+</body>
+</html>
