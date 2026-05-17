@@ -55,8 +55,7 @@ h1,h2,h3,h4{font-family:'Anuphan',sans-serif;letter-spacing:-.02em}
 /* ══════════════════════════════
    MAIN APP
 ══════════════════════════════ */
-#s-app{display:none}
-#s-app.active{display:block}
+#s-app{display:block}
 
 /* NAV */
 nav{
@@ -404,7 +403,7 @@ nav{
 // ══════════════════════════════════════
 // FIREBASE CONFIG — ใส่ config ของคุณที่นี่
 // ══════════════════════════════════════
-window.onload = function(){
+window.addEventListener('DOMContentLoaded', function(){
 
 var firebaseConfig = {
   apiKey: "AIzaSyAPPc5WD42FoGUJbFARcc6jdlILL0lmN_o",
@@ -729,7 +728,7 @@ function toast(msg){
 document.getElementById('delete-modal').addEventListener('click', function(e){ if(e.target===this) closeDeleteModal(); });
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeDeleteModal(); });
 
-}; // end window.onload
+}); // end DOMContentLoaded
 </script>
 </body>
 </html>
